@@ -227,10 +227,15 @@ int main(int argc, char* argv[])
 	}
 
 	/* Use previous misfit as the initial misfit value */
+	//if(!first) dumpfloat1("(antes) slow",slow,n[0]);
 	buildSlownessModelFromVelocityModel3(slow,n,o,d,sv,sz,nsz,osz,dsz,first);
 	modelSetup(s, ns,  m0, t0, BETA,  a,  n,  d,  o,  slow);
 	tmis0=0;//forwardModeling(s,v0,t0,m0,RNIP,BETA,n,o,d,slow,a,ns,data,data_n,data_o,data_d);
 	otmis=tmis0;
+	/*if(!first){
+		dumpfloat1("sz",sz,nsz);
+		sf_error("oi");
+	}*/
 
 	/* Velocity model from inversion */
 	sf_putint(velinv,"n1",n[0]);
@@ -255,6 +260,7 @@ int main(int argc, char* argv[])
 	for(im=0;im<ns;im++){
 		ots[im][0]=s[im][0];
 		ots[im][1]=s[im][1];
+		sf_warning("sz=%f",s[im][0]);
 	}
 	otsv[0]=sv[0];
 
@@ -290,6 +296,7 @@ int main(int argc, char* argv[])
 				for(im=0;im<ns;im++){
 					ots[im][0]=s[im][0];
 					ots[im][1]=s[im][1];
+					sf_warning("sz=%f",s[im][0]);
 				}
 				otsv[0]=cnewv[0];
 				tmis0 = fabs(tmis);
@@ -323,7 +330,8 @@ int main(int argc, char* argv[])
 	updateVelocityModel3(slow,n,o,d,otsv,sz,nsz,osz,dsz,first);
 
 	interfaceInterpolationFromNipSources(ots,ns,otsz,nsz,osz,dsz);
-	dumpfloat1("sz",sz,nsz);
+	//dumpfloat1("sz",sz,nsz);
+	//dumpfloat1("otsz",otsz,nsz);
 
 	sf_putint(zspline,"n1",nsz);
 	sf_putint(zspline,"n2",1);

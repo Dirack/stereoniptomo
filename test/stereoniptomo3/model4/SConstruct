@@ -36,10 +36,12 @@ xmax = 6.0
 zmax = 4.0
 
 layers = ((1.00,1.00,1.00,1.00),
+          (1.45,1.45,1.45,1.45),
           (1.85,1.85,1.85,1.85))
 
 velocities = (1.508,
               1.690,
+              1.750,
               2.0)
 
 ### Modeling ###
@@ -80,19 +82,45 @@ nitf = int(ARGUMENTS.get('nitf',2)) # Number of interfaces
 model = 'model_0' # Constant velocity model
 
 # Traveltime picking
-Flow('pick0.txt',stackedSection,'ipick')
-Flow('pick1.txt',stackedSection,'ipick')
-Flow('pick.txt','pick0.txt pick1.txt','/usr/bin/cat $SOURCES')
+#Flow('pick0.txt',stackedSection,'ipick')
+#Flow('pick1.txt',stackedSection,'ipick')
+#Flow('pick.txt',['pick0.txt','pick1.txt','pick2.txt'],'/usr/bin/cat $SOURCES')
 
-minvel=[1.45,1.60,1.8]
-maxvel=[1.55,1.8,2.0]
-tryvel=[1.5,1.61,1.85]
+minvel=[1.45,1.60,1.71,2.0]
+maxvel=[1.55,1.72,1.8,2.5]
+tryvel=[1.5,1.61,1.72,2.0]
 
 Flow('sz_2',None,'math output="1." n1=21 d1=0.5 o1=-2')
 sz='sz_2'
 
 Flow('constv',None,'math output="%g" n1=301 n2=1001 d1=0.01 d2=0.01 o2=-2 o1=0' % tryvel[0])
-for i in range(2):
+model='constv'
+sv='sv_2'
+
+Flow('sv_2.asc',None,
+	'''
+	echo 1.45 n1=1 data_format=ascii_float in=${TARGETS[0]}
+	''')
+
+# Layer's velocity
+Flow(sv,'sv_2.asc',
+	'''
+	dd type=float form=native
+	''')
+
+# Generate multi layer model
+mlmod(interfaces='interfaces',
+        dipsfile='interfacesDip',
+        modelfile=trueModel,
+        xmax=xmax,
+        zmax=zmax,
+        layers=layers,
+        velocities=velocities)
+
+picks=[]
+for i in range(3):
+	Flow('pick'+str(i)+'.txt',stackedSection,'ipick')
+	picks.append('pick'+str(i)+'.txt')
 	files=['t0s'+str(i),'m0s'+str(i)]
 	k=1
 	for f in files:
@@ -125,19 +153,7 @@ for i in range(2):
 		getparameter t0s=${SOURCES[1]} m0s=${SOURCES[2]} beta=y
 		''')
 
-	sv='sv_2'+str(i)
-
-	Flow('sv_2'+str(i)+'.asc',None,
-		'''
-		echo 1.45 n1=1 data_format=ascii_float in=${TARGETS[0]}
-		''')
-
-	# Layer's velocity
-	Flow(sv,'sv_2'+str(i)+'.asc',
-		'''
-		dd type=float form=native
-		''')
-
+	
 	#Flow('constv'+str(i),None,'math output="%g" n1=301 n2=1001 d1=0.01 d2=0.01 o2=-2 o1=0' % tryvel[i])
 
 
@@ -184,6 +200,7 @@ Flow(['velinv_res','vspline_res','zspline_res'],[model,t0s,m0s,rnips,betas,'svv'
 velinv = 'velinv_res'
 
 ### Plot results ####
+Flow('pick.txt',picks,'/usr/bin/cat $SOURCES')
 files=['t0s','m0s']
 i=1
 for f in files:

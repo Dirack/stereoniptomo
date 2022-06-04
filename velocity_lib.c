@@ -274,6 +274,7 @@ Note: If the velocity model is correct the NIP sources location coincides with i
                 for(im=0;im<nxs;im++){
                         tsz[im]=s[im][0];
                         tsx[im]=s[im][1];
+			//sf_warning("tsz=%f",tsz[im]);
                 }
                 sortingXinAscendingOrder(tsx,tsz,nxs);
                 calculateSplineCoeficients(nxs,tsx,tsz,coef);
@@ -295,6 +296,7 @@ Note: If the velocity model is correct the NIP sources location coincides with i
 
 	//dumpfloat1("tx",tsx,nxs);
 	//dumpfloat1("tz",tsz,nxs);
+	//dumpfloat1("sz",sz,nxsz);
 	free(tsx);
 	free(tsz);
 	free(coef);
@@ -357,7 +359,7 @@ they are interpolated using natural cubic spline interpolation.
 				if(z>zi[0]){
 					vel[n[0]*j+i] = sv[0];
 				}else{
-					vel[n[0]*j+i] = sqrt(vel[n[0]*j+i]);
+					vel[n[0]*j+i] = sqrt(1./vel[n[0]*j+i]);
 				}
 			} /* Loop over depth */
 		} /* Loop over distance */
