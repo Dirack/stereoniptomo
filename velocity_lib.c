@@ -164,3 +164,51 @@ model matrix using the slowness definition slow=(1.0/(v*v)).
 	}
 }
 
+void updateVelocityModel3(
+			   float *vel,
+			   int *n, /* Velocity model dimension n1=n[0] n2=n[1] */
+			   float *o, /* Velocity model axis origin o1=o[0] o2=o[1] */
+			   float *d, /* Velocity model sampling d1=d[0] d2=d[1] */
+			   float *sv /* Velocity model disturbance */)
+/*< Velocity model update
+Note: This function uses a sv (layers velocity) vector and sz (depth interfaces
+coordinates) vector to build the depth velocity model. There is nsv constant
+velocity layers in the model and nsv-1 interfaces separating them.
+These interfaces are described with nsz control points (nodes) in the sz vector and
+they are interpolated using natural cubic spline interpolation.
+ >*/
+{
+        int i, j, i1, i2; 
+
+        for(i2=0;i2<n[1];i2++){
+
+                for(i1=0;i1<n[0];i1++){
+				vel[i2*n[0]+i1]=sv[0];
+                }
+        }
+}
+
+void buildSlownessModelFromVelocityModel3(
+					 float *vel,
+					 int *n, /* Velocity model dimension n1=n[0] n2=n[1] */
+			 		 float *o, /* Velocity model axis origin o1=o[0] o2=o[1] */
+					 float *d, /* Velocity model sampling d1=d[0] d2=d[1] */
+					 float *sv /* Velociy disturbance */)
+/*< Slowness model build from velocity model
+Note: This function is a function wrapper to updateVelocityModel function.
+It calls that function to update the velocity model and build the slowness
+model matrix using the slowness definition slow=(1.0/(v*v)). 
+ >*/
+{
+
+	int i, nm; // Loop counters and indexes
+
+	nm =n[0]*n[1];
+	updateVelocityModel3(vel,n,o,d,sv);
+
+	/* transform velocity to slowness */
+	for(i=0;i<nm;i++){
+			vel[i] = 1.0/(vel[i]*vel[i]);
+	}
+}
+
