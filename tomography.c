@@ -366,7 +366,7 @@ sum of t=ts+tr.
 			//if(sumAmplitudes2<0000.1 || 2*it*dt > 1.5 || 2*it*dt < 1.1){
 			//	tmis += 0.;
 			//}else{
-				tmis += (sumAmplitudes*sumAmplitudes)/(numSamples*sumAmplitudes2);
+				tmis += (sumAmplitudes*sumAmplitudes)/(numSamples*dt*sumAmplitudes2);
 			//}
 
 		}else if(it == 0){ // Ray endpoint inside model
