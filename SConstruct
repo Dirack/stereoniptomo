@@ -5,7 +5,7 @@ import bldutil
 # Put your name programs in progs variable 
 # without 'M' preffix and '.c' extension
 progs = '''
-stereoniptomo1
+stereoniptomo1 stereoniptomo2
 '''
 
 try:  # distributed version

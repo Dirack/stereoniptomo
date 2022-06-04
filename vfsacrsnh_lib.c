@@ -80,3 +80,49 @@ VFSA disturb parameters step.
 	}
 }
 
+/* TODO: Modify this function for multiple interfaces */
+void disturbParameters2( float temperature, /* Temperature of this interation in VFSA */
+			float *disturbedVel, /* Parameters disturbed vector */
+			float *vel,
+			int *nsv,
+			float minvel,
+			float maxvel,
+			float scale /* Scale to multiply by disturbance */)
+/*< Disturb parameters from the previous iteration of VFSA
+ Note: It receives a parameter vector and distubs it accordingly to 
+VFSA disturb parameters step.
+ >*/
+{
+
+	float u;
+	float disturbance;
+	int i,j;
+	float min[6]={1.5,1.5,1.65,1.65,1.75,2.0};
+	float max[6]={1.5,1.65,1.75,1.85,2.0,3.0};
+
+	for(j=0;j<nsv[1];j++){
+		disturbedVel[0+j*nsv[0]]=vel[0+j*nsv[0]];
+		disturbedVel[nsv[0]-1+j*nsv[0]]=vel[nsv[0]-1+j*nsv[0]];
+	}
+
+	for(j=0;j<nsv[1];j++){
+		for(i=1;i<nsv[0]-1;i++){
+
+			u=getRandomNumberBetween0and1();
+						
+			disturbance = signal(u - 0.5) * temperature * (pow( (1+temperature),fabs(2*u-1) )-1);
+			disturbance *= scale;
+
+			disturbedVel[i+j*nsv[0]] = vel[i+j*nsv[0]] + (disturbance);
+
+			if (disturbedVel[i+j*nsv[0]] >= max[i])
+				disturbedVel[i+j*nsv[0]] = max[i] - (max[i]-min[i]) * getRandomNumberBetween0and1();
+
+			if (disturbedVel[i+j*nsv[0]] <= min[i])
+				disturbedVel[i+j*nsv[0]] = (max[i]-min[i]) * getRandomNumberBetween0and1() + min[i];
+		}
+	}
+	//dumpfloat1("dis",disturbedVel,nsv[0]*nsv[1]);
+	//sf_error("oi");
+}
+
