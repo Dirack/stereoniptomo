@@ -248,6 +248,7 @@ ray position is (x=m0,z=0) at acquisition surface.
                         sf_warning("To: x=%f z=%f",s[is][1],s[is][0]);
                         sf_warning("Starting angle: %f",BETA[is]);
                         sf_warning("Escape angle: %f",BETA[is]);
+			dumpfloat1("v",slow,n[0]);
 			sf_error("%s: %d",__FILE__,__LINE__);
 		}else{
                         /* Escape vector */

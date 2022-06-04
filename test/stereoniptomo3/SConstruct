@@ -84,10 +84,14 @@ Flow('pick0.txt',stackedSection,'ipick')
 Flow('pick1.txt',stackedSection,'ipick')
 Flow('pick.txt','pick0.txt pick1.txt','/usr/bin/cat $SOURCES')
 
-minvel=[1.45,1.6,1.8]
-maxvel=[1.6,1.8,2.0]
-tryvel=[1.45,1.65,1.85]
+minvel=[1.49,1.64,1.8]
+maxvel=[1.51,1.8,2.0]
+tryvel=[1.5,1.65,1.85]
 
+Flow('sz_2',None,'math output="1." n1=21 d1=0.5 o1=-2')
+sz='sz_2'
+
+Flow('constv',None,'math output="%g" n1=301 n2=1001 d1=0.01 d2=0.01 o2=-2 o1=0' % tryvel[0])
 for i in range(2):
 	files=['t0s'+str(i),'m0s'+str(i)]
 	k=1
@@ -134,7 +138,7 @@ for i in range(2):
 		dd type=float form=native
 		''')
 
-	Flow('constv'+str(i),None,'math output="%g" n1=301 n2=1001 d1=0.01 d2=0.01 o2=-2 o1=0' % tryvel[i])
+	#Flow('constv'+str(i),None,'math output="%g" n1=301 n2=1001 d1=0.01 d2=0.01 o2=-2 o1=0' % tryvel[i])
 
 
 	t0s='t0s'+str(i)
@@ -142,18 +146,42 @@ for i in range(2):
 	betas='betas'+str(i)
 	rnips='rnips'+str(i)
 	shotsfile='shotsfile'+str(i)
-	anglefile='anglefile'+str(i)
-	model = 'constv'+str(i)
+	#anglefile='anglefile'+str(i)
+	#model = 'constv'+str(i)
 
 	velinv = 'modelinv_%d' % i
 	vspline = 'vspline_%d' % i
-	Flow([velinv,vspline],[model,t0s,m0s,rnips,betas,sv,interpolatedDataCube,shotsfile],
+	zspline = 'zspline_%d' %i
+	if(i==0):
+		first='y'
+	Flow([velinv,vspline,zspline],[model,t0s,m0s,rnips,betas,sv,interpolatedDataCube,shotsfile,sz],
 	    '''
-	    stereoniptomo3 t0s=${SOURCES[1]} m0s=${SOURCES[2]} rnips=${SOURCES[3]} betas=${SOURCES[4]} sv=${SOURCES[5]} vspline=${TARGETS[1]} data=${SOURCES[6]} shotsfile=${SOURCES[7]} v0=1.508 nit=%d c0=0.75 temp0=1.5 minvel=%g maxvel=%g
-	    ''' % (nit,minvel[i],maxvel[i]))
+	    stereoniptomo3 t0s=${SOURCES[1]} m0s=${SOURCES[2]} rnips=${SOURCES[3]} betas=${SOURCES[4]} sv=${SOURCES[5]} vspline=${TARGETS[1]} data=${SOURCES[6]} shotsfile=${SOURCES[7]} sz=${SOURCES[8]} zspline=${TARGETS[2]} v0=1.508 nit=%d c0=0.75 temp0=1.5 minvel=%g maxvel=%g first=%s
+	    ''' % (nit,minvel[i],maxvel[i],first))
 
 	model = velinv
 	sv = vspline
+	sz = zspline
+	first = 'n'
+
+### Basement ####
+Flow('svv.asc',None,
+	'''
+	echo 2. n1=1 data_format=ascii_float in=${TARGETS[0]}
+	''')
+
+# Layer's velocity
+Flow('svv','svv.asc',
+	'''
+	dd type=float form=native
+	''')
+
+Flow(['velinv_res','vspline_res','zspline_res'],[model,t0s,m0s,rnips,betas,'svv',interpolatedDataCube,shotsfile,sz],
+	    '''
+	    stereoniptomo3 t0s=${SOURCES[1]} m0s=${SOURCES[2]} rnips=${SOURCES[3]} betas=${SOURCES[4]} sv=${SOURCES[5]} vspline=${TARGETS[1]} data=${SOURCES[6]} shotsfile=${SOURCES[7]} sz=${SOURCES[8]} zspline=${TARGETS[2]} v0=1.508 nit=%d c0=0.75 temp0=1.5 base=y first=n
+	    ''')
+
+velinv = 'velinv_res'
 
 ### Plot results ####
 files=['t0s','m0s']
@@ -190,7 +218,7 @@ Flow('anglefile',[parametersCube,'t0s','m0s'],
 
 # NIP model setup after velocity model inversion,
 # ray-tracing from acquisition surface to NIP sources
-Flow(['ray2','nipangles2'],[velinv,shotsfile,anglefile,t0s],
+Flow(['ray2','nipangles2'],[velinv,'shotsfile','anglefile','t0s'],
         '''
         nipmodsetup shotsfile=${SOURCES[1]} anglefile=${SOURCES[2]} t0s=${SOURCES[3]} nipangles=${TARGETS[1]} | dd type=complex
         ''')

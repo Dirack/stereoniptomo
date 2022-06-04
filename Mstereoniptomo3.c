@@ -58,6 +58,14 @@ int main(int argc, char* argv[])
 	float sv[1]; // Layer's Velocity
 	float minvel;
 	float maxvel;
+	bool first;
+	bool base;
+	float **ots;
+	float *otsz;
+	float *sz;
+	int nsz;
+	float osz;
+	float dsz;
 	float ***data; // Prestack data A(m,h,t)
 	int data_n[3]; // n1, n2, n3 dimension of data
 	float data_o[3]; // o1, o2, o3 axis origins of data
@@ -65,6 +73,8 @@ int main(int argc, char* argv[])
 	sf_file shots; // NIP sources (z,x)
 	sf_file vel; // background velocity model
 	sf_file vz_file;
+	sf_file sz_file;
+	sf_file zspline;
 	sf_file velinv; // Inverted velocity model
 	sf_file m0s; // Central CMPs m0
 	sf_file t0s; // Normal ray traveltimes
@@ -78,8 +88,10 @@ int main(int argc, char* argv[])
 	shots = sf_input("shotsfile");
 	vel = sf_input("in");
 	vz_file = sf_input("sv");
+	sz_file = sf_input("sz");
 	velinv = sf_output("out");
 	vspline = sf_output("vspline");
+	zspline = sf_output("zspline");
 	m0s = sf_input("m0s");
 	t0s = sf_input("t0s");
 	rnips = sf_input("rnips");
@@ -126,6 +138,11 @@ int main(int argc, char* argv[])
 	if(!sf_getfloat("maxvel",&maxvel)) maxvel=2.0;
 	/* Layers maximum velocity */
 
+	if(!sf_getbool("first",&first)) first=true;
+	/* First interface? */
+
+	if(!sf_getbool("base",&base)) base=false;
+
 	/* Shotsfile: get shot points */
 	if(!sf_histint(shots,"n1",&ndim) || 2 != ndim)
 		sf_error("Must have n1=2 in shotsfile");
@@ -134,6 +151,18 @@ int main(int argc, char* argv[])
 	sf_floatread(s[0],ndim*nshot,shots);
 	sf_fileclose(shots);
 	ns=nshot;
+
+	/*if(first){
+		sz=NULL;
+	}else{*/
+		if(!sf_histint(sz_file,"n1",&nsz)) sf_error("No n1= in sz_file");
+		if(!sf_histfloat(sz_file,"o1",&osz)) sf_error("No o1= in sz_file");
+		if(!sf_histfloat(sz_file,"d1",&dsz)) sf_error("No d1= in sz_file");
+		sz = sf_floatalloc(nsz);
+		sf_floatread(sz,nsz,sz_file);
+		otsz = sf_floatalloc(nsz);
+		ots = sf_floatalloc2(ndim,ns);
+	//}
 
 	/* Cubic spline vector */
 	/*if(!sf_histint(vz_file,"n1",nsv)) sf_error("No n1= in sv file");
@@ -198,7 +227,7 @@ int main(int argc, char* argv[])
 	}
 
 	/* Use previous misfit as the initial misfit value */
-	buildSlownessModelFromVelocityModel3(slow,n,o,d,sv);
+	buildSlownessModelFromVelocityModel3(slow,n,o,d,sv,sz,nsz,osz,dsz,first);
 	modelSetup(s, ns,  m0, t0, BETA,  a,  n,  d,  o,  slow);
 	tmis0=0;//forwardModeling(s,v0,t0,m0,RNIP,BETA,n,o,d,slow,a,ns,data,data_n,data_o,data_d);
 	otmis=tmis0;
@@ -223,69 +252,86 @@ int main(int argc, char* argv[])
 	sf_putfloat(vspline,"d2",dsv[1]);*/
 	
 	/* Intiate optimal parameters vectors */
-	//for(im=0;im<nsv[0]*nsv[1];im++)
+	for(im=0;im<ns;im++){
+		ots[im][0]=s[im][0];
+		ots[im][1]=s[im][1];
+	}
 	otsv[0]=sv[0];
 
 	srand(time(NULL));
-	/* Very Fast Simulated Annealing (VFSA) algorithm */
-	for (q=0; q<nit; q++){
-	
-		/* calculate VFSA temperature for this iteration */
-		temp=getVfsaIterationTemperature(q,c0,temp0);
-						
-		/* parameter disturbance */
-		disturbParameters3(temp,cnewv,sv,minvel,maxvel,1);
-
-	//	dumpfloat1("cnewv",cnewv,nsv[0]*nsv[1]);
-
-		/* Function to update velocity model */
-		buildSlownessModelFromVelocityModel3(slow,n,o,d,cnewv);
-
-		//sf_warning("%d",__LINE__);
-		tmis=0;
-		modelSetup(s, ns,  m0, t0, BETA,  a,  n,  d,  o,  slow);
-		//sf_warning("%d",__LINE__);
-		//dumpfloat1("slow",slow,n[[0]]);
-		tmis=forwardModeling(s,v0,t0,m0,RNIP,BETA,n,o,d,slow,a,ns,data,data_n,data_o,data_d);
-		//dumpfloat1("slow",slow,nm);
-		//sf_error("capa");
-
-	
-		if(fabs(tmis) > fabs(tmis0) ){
-			otmis = fabs(tmis);
-			/* optimized parameters */
-			//for(im=0;im<nsv[0]*nsv[1];im++)
-			otsv[0]=cnewv[0];
-			tmis0 = fabs(tmis);
-		}
-
-		/* VFSA parameters update condition */
-		deltaE = fabs(tmis) - Em0;
+	if(!base){
+		/* Very Fast Simulated Annealing (VFSA) algorithm */
+		for (q=0; q<nit; q++){
 		
-		/* Metrópolis criteria */
-		PM = expf(-deltaE/temp);
+			/* calculate VFSA temperature for this iteration */
+			temp=getVfsaIterationTemperature(q,c0,temp0);
+							
+			/* parameter disturbance */
+			disturbParameters3(temp,cnewv,sv,minvel,maxvel,1);
+
+		//	dumpfloat1("cnewv",cnewv,nsv[0]*nsv[1]);
+
+			/* Function to update velocity model */
+			buildSlownessModelFromVelocityModel3(slow,n,o,d,cnewv,sz,nsz,osz,dsz,first);
+
+			//sf_warning("%d",__LINE__);
+			tmis=0;
+			modelSetup(s, ns,  m0, t0, BETA,  a,  n,  d,  o,  slow);
+			//sf_warning("%d",__LINE__);
+			//dumpfloat1("slow",slow,n[[0]]);
+			tmis=forwardModeling(s,v0,t0,m0,RNIP,BETA,n,o,d,slow,a,ns,data,data_n,data_o,data_d);
+			//dumpfloat1("slow",slow,nm);
+			//sf_error("capa");
+
 		
-		if (deltaE<=0){
-			//for(im=0;im<nsv[0]*nsv[1];im++)
-			sv[0]=cnewv[0];
-			Em0 = fabs(tmis);
-		} else {
-			u=getRandomNumberBetween0and1();
-			if (PM > u){
+			if(fabs(tmis) > fabs(tmis0) ){
+				otmis = fabs(tmis);
+				/* optimized parameters */
+				for(im=0;im<ns;im++){
+					ots[im][0]=s[im][0];
+					ots[im][1]=s[im][1];
+				}
+				otsv[0]=cnewv[0];
+				tmis0 = fabs(tmis);
+			}
+
+			/* VFSA parameters update condition */
+			deltaE = fabs(tmis) - Em0;
+			
+			/* Metrópolis criteria */
+			PM = expf(-deltaE/temp);
+			
+			if (deltaE<=0){
 				//for(im=0;im<nsv[0]*nsv[1];im++)
 				sv[0]=cnewv[0];
 				Em0 = fabs(tmis);
-			}
-		}	
-			
-		sf_warning("%d/%d Missfit(%f) ;",q+1,nit,otmis);
+			} else {
+				u=getRandomNumberBetween0and1();
+				if (PM > u){
+					//for(im=0;im<nsv[0]*nsv[1];im++)
+					sv[0]=cnewv[0];
+					Em0 = fabs(tmis);
+				}
+			}	
+				
+			sf_warning("%d/%d Missfit(%f) vel=%f ;",q+1,nit,otmis,otsv[0]);
 
-	} /* loop over VFSA iterations */
+		} /* loop over VFSA iterations */
+	}
 
 	/* Generate optimal velocity model */
-	updateVelocityModel3(slow,n,o,d,otsv);
+	updateVelocityModel3(slow,n,o,d,otsv,sz,nsz,osz,dsz,first);
+
+	interfaceInterpolationFromNipSources(ots,ns,otsz,nsz,osz,dsz);
+	dumpfloat1("sz",sz,nsz);
+
+	sf_putint(zspline,"n1",nsz);
+	sf_putint(zspline,"n2",1);
+	sf_putfloat(zspline,"o1",osz);
+	sf_putfloat(zspline,"d1",dsz);
 
 	/* Write velocity cubic spline function */
 	sf_floatwrite(otsv,1,vspline);
+	sf_floatwrite(otsz,nsz,zspline);
 	sf_floatwrite(slow,nm,velinv);
 }
