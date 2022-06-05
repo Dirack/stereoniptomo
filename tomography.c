@@ -327,6 +327,8 @@ sum of t=ts+tr.
 	float semb;
 	float tt;
 	int k;
+	float pesos;
+	float ricker[31]={-0.025013 ,-0.027977 ,-0.032333 ,-0.037205 ,-0.041408 ,-0.043534 ,-0.042141 ,-0.036006 ,-0.024431 ,-0.007521 ,0.013642 ,0.037015 ,0.059829 ,0.079032 ,0.091854 ,0.096360 ,0.091854 ,0.079032 ,0.059829 ,0.037015 ,0.013642 ,-0.007521 ,-0.024431 ,-0.036006 ,-0.042141 ,-0.043534 ,-0.041408 ,-0.037205 ,-0.032333 ,-0.027977 ,-0.025013};
 
 	x = sf_floatalloc(2);
 
@@ -358,18 +360,28 @@ sum of t=ts+tr.
 			/* Calculate BETA */
 			beta = calculateBetaWithRayTrajectory(x,traj,it);
 
-			/*tmis += (rnip-RNIP[is])*(rnip-RNIP[is]);
-			tmis += (beta-BETA[is])*(beta-BETA[is]);
-			tmis += (traj[it][1]-m0[is])*(traj[it][1]-m0[is]);
-			tmis += (2*it*dt-t0[is])*(2*it*dt-t0[is]);*/
-			//sf_warning("rnip=%f beta=%f m0=%f t0=%f",rnip,beta,traj[it][1],2*it*dt);
-			semb=0.;
-			for(k=0;k<11;k++){
-				tt = (2*it*dt)+(k-5)*dt;
-				numSamples = stackOverCRETimeCurve(rnip,beta,x[1],tt,v0,&sumAmplitudes,&sumAmplitudes2,data,data_n,data_o,data_d);
-				semb += (sumAmplitudes*sumAmplitudes)/(numSamples*sumAmplitudes2);
+			sf_warning("rnip=%f beta=%f m0=%f t0=%f",rnip,beta,traj[it][1],2*it*dt);
+			if(rnip>1.85 && rnip < 10.){
+				/*tmis += (rnip-RNIP[is])*(rnip-RNIP[is]);
+				tmis += (beta-BETA[is])*(beta-BETA[is]);
+				tmis += (traj[it][1]-m0[is])*(traj[it][1]-m0[is]);
+				tmis += (2*it*dt-t0[is])*(2*it*dt-t0[is]);*/
+				semb=0.;
+				pesos=0.;
+				for(k=0;k<31;k++){
+					tt = (2*it*dt)+(k-16)*dt;
+					numSamples = stackOverCRETimeCurve(rnip,beta,x[1],tt,v0,&sumAmplitudes,&sumAmplitudes2,data,data_n,data_o,data_d);
+					if(sumAmplitudes2<0.0001){
+						semb += 0.;
+					}else{
+						semb += fabs(sumAmplitudes*sumAmplitudes)/(numSamples*sumAmplitudes2);
+					}
+					pesos =1;//+= fabs(ricker[k]);
+				}
+				tmis += semb/(31.*dt);
+			}else{
+				tmis += 0.;
 			}
-			tmis += semb/(11.*dt);
 			//if(sumAmplitudes2<0000.1 || 2*it*dt > 1.5 || 2*it*dt < 1.1){
 			//	tmis += 0.;
 			//}else{

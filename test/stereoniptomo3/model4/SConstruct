@@ -86,9 +86,9 @@ model = 'model_0' # Constant velocity model
 #Flow('pick1.txt',stackedSection,'ipick')
 #Flow('pick.txt',['pick0.txt','pick1.txt','pick2.txt'],'/usr/bin/cat $SOURCES')
 
-minvel=[1.45,1.60,1.71,2.0]
-maxvel=[1.55,1.72,1.8,2.5]
-tryvel=[1.5,1.61,1.72,2.0]
+minvel=[1.5,1.60,1.7,2.0]
+maxvel=[1.51,1.73,1.78,2.5]
+tryvel=[1.5,1.63,1.72,2.0]
 
 Flow('sz_2',None,'math output="1." n1=21 d1=0.5 o1=-2')
 sz='sz_2'
@@ -172,7 +172,7 @@ for i in range(3):
 		first='y'
 	Flow([velinv,vspline,zspline],[model,t0s,m0s,rnips,betas,sv,interpolatedDataCube,shotsfile,sz],
 	    '''
-	    stereoniptomo3 t0s=${SOURCES[1]} m0s=${SOURCES[2]} rnips=${SOURCES[3]} betas=${SOURCES[4]} sv=${SOURCES[5]} vspline=${TARGETS[1]} data=${SOURCES[6]} shotsfile=${SOURCES[7]} sz=${SOURCES[8]} zspline=${TARGETS[2]} v0=1.508 nit=%d c0=0.75 temp0=1.5 minvel=%g maxvel=%g first=%s
+	    stereoniptomo3 t0s=${SOURCES[1]} m0s=${SOURCES[2]} rnips=${SOURCES[3]} betas=${SOURCES[4]} sv=${SOURCES[5]} vspline=${TARGETS[1]} data=${SOURCES[6]} shotsfile=${SOURCES[7]} sz=${SOURCES[8]} zspline=${TARGETS[2]} v0=1.508 nit=%d c0=0.2 temp0=2 minvel=%g maxvel=%g first=%s
 	    ''' % (nit,minvel[i],maxvel[i],first))
 
 	model = velinv
@@ -194,7 +194,7 @@ Flow('svv','svv.asc',
 
 Flow(['velinv_res','vspline_res','zspline_res'],[model,t0s,m0s,rnips,betas,'svv',interpolatedDataCube,shotsfile,sz],
 	    '''
-	    stereoniptomo3 t0s=${SOURCES[1]} m0s=${SOURCES[2]} rnips=${SOURCES[3]} betas=${SOURCES[4]} sv=${SOURCES[5]} vspline=${TARGETS[1]} data=${SOURCES[6]} shotsfile=${SOURCES[7]} sz=${SOURCES[8]} zspline=${TARGETS[2]} v0=1.508 nit=%d c0=0.75 temp0=1.5 base=y first=n
+	    stereoniptomo3 t0s=${SOURCES[1]} m0s=${SOURCES[2]} rnips=${SOURCES[3]} betas=${SOURCES[4]} sv=${SOURCES[5]} vspline=${TARGETS[1]} data=${SOURCES[6]} shotsfile=${SOURCES[7]} sz=${SOURCES[8]} zspline=${TARGETS[2]} v0=1.508 nit=%d c0=0.2 temp0=2 base=y first=n
 	    ''')
 
 velinv = 'velinv_res'

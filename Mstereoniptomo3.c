@@ -230,7 +230,7 @@ int main(int argc, char* argv[])
 	//if(!first) dumpfloat1("(antes) slow",slow,n[0]);
 	buildSlownessModelFromVelocityModel3(slow,n,o,d,sv,sz,nsz,osz,dsz,first);
 	modelSetup(s, ns,  m0, t0, BETA,  a,  n,  d,  o,  slow);
-	tmis0=0;//forwardModeling(s,v0,t0,m0,RNIP,BETA,n,o,d,slow,a,ns,data,data_n,data_o,data_d);
+	tmis0=0.;//forwardModeling(s,v0,t0,m0,RNIP,BETA,n,o,d,slow,a,ns,data,data_n,data_o,data_d);
 	otmis=tmis0;
 	/*if(!first){
 		dumpfloat1("sz",sz,nsz);
@@ -321,7 +321,7 @@ int main(int argc, char* argv[])
 				}
 			}	
 				
-			sf_warning("%d/%d Missfit(%f) vel=%f ;",q+1,nit,otmis,otsv[0]);
+			sf_warning("%d/%d Missfit(%f) vel=%f v=%f ;",q+1,nit,otmis,otsv[0],cnewv[0]);
 
 		} /* loop over VFSA iterations */
 	}

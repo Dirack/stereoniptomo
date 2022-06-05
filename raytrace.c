@@ -83,85 +83,6 @@ static void dyn_iso_rhs(void* par, float dvdn, float *x, float* y, float* f)
 	f[1] = (-1./v)*dvdn*y[0]; /* -1/v dv/dn q */
 }
 
-float second_derivative(void *par, float *n, float *x, float v)
-/*< Calculate the second derivative in the direction normal to ray trajectory >*/
-{
-	raytrace rt;
-	float vpdx, vmdx;
-	float dx=0.001;
-	float *tmp;
-
-	tmp = sf_floatalloc(2);
-
-	rt = (raytrace) par;
-
-	n[0]*=dx;
-	n[1]*=dx;
-
-	// ppdx
-	tmp[0] = x[0]+n[1];
-	tmp[1] = x[1]-n[0];
-	vpdx = sqrtf(1./grid2_vel(rt->grd2,tmp));
-
-	// pmdx
-	tmp[0]=x[0]-n[1];
-	tmp[1]=x[1]+n[0];
-	vmdx = sqrtf(1./grid2_vel(rt->grd2,tmp));
-
-	return (vpdx-2.*v+vmdx)/(dx*dx);
-}
-
-float calculateRNIPWithDynamicRayTracing(
-					  void *par, /* Raytrace struct */
-					  float dt, /* Time sampling */
-					  float nt, /* Number of time samples */
-					  float **traj, /* Ray trajectory (z,x) */
-					  float v0 /* Near surface velocity */
-)
-/*< Calculate RNIP with dynamic ray tracing >*/
-{
-	float v; // velocity
-	int it; // Loop counter
-	raytrace rt; // Raytrace struct
-	float *x; // Sample coordinate (z,x)
-	float *n; // Normal vector
-	float *dvdn; // Derivative normal to ray direction
-	float mod; // tmp variable
-	float rnip; // RNIP parameter
-
-    	rt = (raytrace) par;
-	x = sf_floatalloc(2);
-	n = sf_floatalloc(2);
-	dvdn = sf_floatalloc(nt-2);
-
-	for(it=0;it<nt-2;it++){
-		x[0]=traj[it][0];
-		x[1]=traj[it][1];
-		n[0] = (traj[it+1][0]-traj[it][0]);
-		n[1] = (traj[it+1][1]-traj[it][1]);
-		mod = sqrtf(n[0]*n[0]+n[1]*n[1]);
-		n[0] /= mod;
-		n[1] /= mod;
-
-		v = sqrtf(1./grid2_vel(rt->grd2,x));
-
-		/* Calculate derivative for each ray sample */
-		dvdn[it]=second_derivative(rt,n,x,v);
-
-	} // Loop over ray samples
-
-	/* Initial conditions for a point source */
-	x[0]=0.; // q=0
-	x[1]=1.; // p=1
-
-	/* Fourth order Runge-Kutta dynamic ray tracing */
-	sf_dynamic_runge_init(2,nt-2,2*dt);
-	rnip = sf_dynamic_runge_step(x,rt,dyn_iso_rhs,dvdn,traj,v0);
-	sf_dynamic_runge_close();
-
-	return rnip;
-}
-
 void first_deriv( float h /* step */,
 		float *zx /* f(x) */,
 		float *der /* Derivative */,
@@ -191,6 +112,91 @@ void second_deriv( float h /* passo h */,
 	first_deriv(h,firstder,der,n);
 	free(firstder);
 }
+
+
+float second_derivative(void *par, float *n, float *x, float v)
+/*< Calculate the second derivative in the direction normal to ray trajectory >*/
+{
+	raytrace rt;
+	float vpdx, vmdx;
+	float dx=0.001;
+	float tmp[2];
+	float der[3];
+	float fx[3];
+
+	rt = (raytrace) par;
+
+	n[0]*=dx;
+	n[1]*=dx;
+
+	// ppdx
+	tmp[0] = x[0]+n[1];
+	tmp[1] = x[1]-n[0];
+	fx[0] = sqrtf(1./grid2_vel(rt->grd2,tmp));
+
+	fx[1]=v;
+
+	// pmdx
+	tmp[0]=x[0]-n[1];
+	tmp[1]=x[1]+n[0];
+	fx[2] = sqrtf(1./grid2_vel(rt->grd2,tmp));	
+
+	second_deriv(0.001,fx,der,3);
+	//return (vpdx-2.*v+vmdx)/(dx*dx);
+	return der[1];
+}
+
+float calculateRNIPWithDynamicRayTracing(
+					  void *par, /* Raytrace struct */
+					  float dt, /* Time sampling */
+					  float nt, /* Number of time samples */
+					  float **traj, /* Ray trajectory (z,x) */
+					  float v0 /* Near surface velocity */
+)
+/*< Calculate RNIP with dynamic ray tracing >*/
+{
+	float v; // velocity
+	int it; // Loop counter
+	raytrace rt; // Raytrace struct
+	float *x; // Sample coordinate (z,x)
+	float *n; // Normal vector
+	float *dvdn; // Derivative normal to ray direction
+	float mod; // tmp variable
+	float rnip; // RNIP parameter
+
+    	rt = (raytrace) par;
+	x = sf_floatalloc(2);
+	n = sf_floatalloc(2);
+	dvdn = sf_floatalloc(nt);
+
+	for(it=0;it<nt;it++){
+		x[0]=traj[it][0];
+		x[1]=traj[it][1];
+		n[0] = (traj[it+1][0]-traj[it][0]);
+		n[1] = (traj[it+1][1]-traj[it][1]);
+		mod = sqrtf(n[0]*n[0]+n[1]*n[1]);
+		n[0] /= mod;
+		n[1] /= mod;
+
+		v = sqrtf(1./grid2_vel(rt->grd2,x));
+
+		/* Calculate derivative for each ray sample */
+		dvdn[it]=second_derivative(rt,n,x,v);
+
+	} // Loop over ray samples
+
+	/* Initial conditions for a point source */
+	x[0]=0.; // q=0
+	x[1]=1.; // p=1
+
+	/* Fourth order Runge-Kutta dynamic ray tracing */
+	sf_dynamic_runge_init(2,nt,2*dt);
+	rnip = sf_dynamic_runge_step(x,rt,dyn_iso_rhs,dvdn,traj,v0);
+	sf_dynamic_runge_close();
+
+	return rnip;
+}
+
 
 void sortingXinAscendingOrder(
 				float *x, /* x vector to sort */
