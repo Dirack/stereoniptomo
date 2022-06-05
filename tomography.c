@@ -248,7 +248,6 @@ ray position is (x=m0,z=0) at acquisition surface.
                         sf_warning("To: x=%f z=%f",s[is][1],s[is][0]);
                         sf_warning("Starting angle: %f",BETA[is]);
                         sf_warning("Escape angle: %f",BETA[is]);
-			dumpfloat1("v",slow,n[0]);
 			sf_error("%s: %d",__FILE__,__LINE__);
 		}else{
                         /* Escape vector */
@@ -325,6 +324,9 @@ sum of t=ts+tr.
 	float rnip;
 	float sumAmplitudes=0., sumAmplitudes2=0.;
 	int numSamples=1;
+	float semb;
+	float tt;
+	int k;
 
 	x = sf_floatalloc(2);
 
@@ -361,12 +363,16 @@ sum of t=ts+tr.
 			tmis += (traj[it][1]-m0[is])*(traj[it][1]-m0[is]);
 			tmis += (2*it*dt-t0[is])*(2*it*dt-t0[is]);*/
 			//sf_warning("rnip=%f beta=%f m0=%f t0=%f",rnip,beta,traj[it][1],2*it*dt);
-			numSamples = stackOverCRETimeCurve(rnip,beta,x[1],2*it*dt,v0,&sumAmplitudes,&sumAmplitudes2,data,data_n,data_o,data_d);
-
+			semb=0.;
+			for(k=0;k<11;k++){
+				tt = (2*it*dt)+(k-5)*dt;
+				numSamples = stackOverCRETimeCurve(rnip,beta,x[1],tt,v0,&sumAmplitudes,&sumAmplitudes2,data,data_n,data_o,data_d);
+				semb += (sumAmplitudes*sumAmplitudes)/(numSamples*sumAmplitudes2);
+			}
+			tmis += semb/(11.*dt);
 			//if(sumAmplitudes2<0000.1 || 2*it*dt > 1.5 || 2*it*dt < 1.1){
 			//	tmis += 0.;
 			//}else{
-				tmis += (sumAmplitudes*sumAmplitudes)/(numSamples*dt*sumAmplitudes2);
 			//}
 
 		}else if(it == 0){ // Ray endpoint inside model
