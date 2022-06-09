@@ -84,7 +84,7 @@ model = 'model_0' # Constant velocity model
 #Flow('pick1.txt',stackedSection,'ipick')
 #Flow('pick.txt',['pick0.txt','pick1.txt','pick2.txt'],'/usr/bin/cat $SOURCES')
 
-minvel=[1.49,1.60,1.71,2.0]
+minvel=[1.5,1.60,1.71,2.0]
 maxvel=[1.51,1.9,1.8,2.5]
 tryvel=[1.5,1.63,1.72,2.0]
 
@@ -170,7 +170,7 @@ for i in range(2):
 		first='y'
 	Flow([velinv,vspline,zspline],[model,t0s,m0s,rnips,betas,sv,interpolatedDataCube,shotsfile,sz],
 	    '''
-	    stereoniptomo3 t0s=${SOURCES[1]} m0s=${SOURCES[2]} rnips=${SOURCES[3]} betas=${SOURCES[4]} sv=${SOURCES[5]} vspline=${TARGETS[1]} data=${SOURCES[6]} shotsfile=${SOURCES[7]} sz=${SOURCES[8]} zspline=${TARGETS[2]} v0=1.508 nit=%d c0=0.5 temp0=10 minvel=%g maxvel=%g first=%s
+	    stereoniptomo3 t0s=${SOURCES[1]} m0s=${SOURCES[2]} rnips=${SOURCES[3]} betas=${SOURCES[4]} sv=${SOURCES[5]} vspline=${TARGETS[1]} data=${SOURCES[6]} shotsfile=${SOURCES[7]} sz=${SOURCES[8]} zspline=${TARGETS[2]} v0=1.508 nit=%d c0=0.2 temp0=2 minvel=%g maxvel=%g first=%s
 	    ''' % (nit,minvel[i],maxvel[i],first))
 
 	model = velinv

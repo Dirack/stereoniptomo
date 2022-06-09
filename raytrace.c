@@ -133,13 +133,16 @@ float second_derivative(void *par, float *n, float *x, float v)
 	tmp[0] = x[0]+n[1];
 	tmp[1] = x[1]-n[0];
 	fx[0] = sqrtf(1./grid2_vel(rt->grd2,tmp));
+	//vpdx = sqrtf(1./grid2_vel(rt->grd2,tmp));
 
 	fx[1]=v;
+	//fx[1]=v;
 
 	// pmdx
 	tmp[0]=x[0]-n[1];
 	tmp[1]=x[1]+n[0];
 	fx[2] = sqrtf(1./grid2_vel(rt->grd2,tmp));	
+	//vmdx = sqrtf(1./grid2_vel(rt->grd2,tmp));	
 
 	second_deriv(0.001,fx,der,3);
 	//return (vpdx-2.*v+vmdx)/(dx*dx);

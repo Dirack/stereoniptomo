@@ -230,7 +230,7 @@ int main(int argc, char* argv[])
 	//if(!first) dumpfloat1("(antes) slow",slow,n[0]);
 	buildSlownessModelFromVelocityModel3(slow,n,o,d,sv,sz,nsz,osz,dsz,first);
 	modelSetup(s, ns,  m0, t0, BETA,  a,  n,  d,  o,  slow);
-	tmis0=0.;//forwardModeling(s,v0,t0,m0,RNIP,BETA,n,o,d,slow,a,ns,data,data_n,data_o,data_d);
+	tmis0=0.;//creForwardModeling(s,v0,t0,m0,RNIP,BETA,n,o,d,slow,a,ns,data,data_n,data_o,data_d);
 	otmis=tmis0;
 	/*if(!first){
 		dumpfloat1("sz",sz,nsz);
@@ -291,6 +291,7 @@ int main(int argc, char* argv[])
 
 		
 			if(fabs(tmis) > fabs(tmis0) ){
+			//if(tmis > tmis0 ){
 				otmis = fabs(tmis);
 				/* optimized parameters */
 				for(im=0;im<ns;im++){
@@ -300,6 +301,7 @@ int main(int argc, char* argv[])
 				}
 				otsv[0]=cnewv[0];
 				tmis0 = fabs(tmis);
+				//tmis0 = tmis;
 			}
 
 			/* VFSA parameters update condition */
@@ -312,16 +314,18 @@ int main(int argc, char* argv[])
 				//for(im=0;im<nsv[0]*nsv[1];im++)
 				sv[0]=cnewv[0];
 				Em0 = fabs(tmis);
+				//Em0 = tmis;
 			} else {
 				u=getRandomNumberBetween0and1();
 				if (PM > u){
 					//for(im=0;im<nsv[0]*nsv[1];im++)
 					sv[0]=cnewv[0];
 					Em0 = fabs(tmis);
+					//Em0 = tmis;
 				}
 			}	
 				
-			sf_warning("%d/%d Missfit(%f) vel=%f v=%f ;",q+1,nit,otmis,otsv[0],cnewv[0]);
+			sf_warning("%d/%d Missfit(%f) vel=%f v=%f %f ;",q+1,nit,otmis,otsv[0],cnewv[0],tmis);
 
 		} /* loop over VFSA iterations */
 	}
