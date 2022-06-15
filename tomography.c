@@ -1,7 +1,7 @@
 /*
 	 tomography.c (c)
 	 
-	 Purpose: 'Mvfsacrsnh.c' library for raytracing and traveltime
+	 Purpose: 'Mstereoniptomo*.c' library for raytracing and traveltime
 	 calculation.
 	 	 
 	 Site: https://dirack.github.io
@@ -22,8 +22,7 @@
 #include "tomography.h"
 /*^*/
 
-#define OFFSET_APERTURE 101
-#define CMP_APERTURE 10
+#define OFFSET_APERTURE 121
 #define DANGLE 0.01
 #define DT 0.001
 /*^*/
@@ -35,29 +34,26 @@ float creTimeApproximation(float h, // Half-offset
 			 float m0, // Central CMP
 			 float RNIP, // CRE parameter
 			 float BETA, // CRE parameter
-			 bool cds // Use CDS condition?
+			 bool cds // Use CDS condition (RN=RNIP)?
 			 )
 /*< Calculate CRE traveltime approximation t(m,h)
 Note: If cds parameter is false, it uses the CRE formula to calculate traveltime.
 If cds parameter is true, it uses the non-hyperbolic CRS formula with CDS condition (RN=RNIP) to calculate traveltime.
 >*/
 { 
-	float alpha; // Asymmetry parameter
+	float alpha; // CRE asymmetry parameter
 	float d = m-m0; // Distance to central CMP m0
 	float c1; // CRE coefficient
 	float c2; // CRE coefficient
-	float a1, a2, b2, b1, Fd, Fd1, Fd2; // Non-hyperbolic CRS coefficient
+	float a1, a2, b2, b1, Fd, Fd1, Fd2; // Non-hyperbolic CRS coefficients
 	float t; // traveltime t(m,h)
 
 	if(cds){
 		a1=(2*sin(BETA))/(v0);
 		a2=(2*cos(BETA)*cos(BETA)*t0)/(v0*RNIP);
-		b2=(2*cos(BETA)*cos(BETA)*t0)/(v0*RNIP);
-		b1=2*b2+a1*a1-a2;
-		Fd=(t0+a1*d)*(t0+a1*d)+a2*d*d;
 		Fd2=(t0+a1*(d-h))*(t0+a1*(d-h))+a2*(d-h)*(d-h);
 		Fd1=(t0+a1*(d+h))*(t0+a1*(d+h))+a2*(d+h)*(d+h);
-		t=sqrt((Fd+b1*h*h+sqrt(Fd2*Fd1))*0.5);
+		t=0.5*(sqrt(Fd2)+sqrt(Fd1));
 	}else{
 		c1 = (d+h)/RNIP;
 		c2 = (d-h)/RNIP;
@@ -147,11 +143,10 @@ Note: sumAmplitudes and sumAmplitudes2 variables are changed inside function
 	float sa2=0.; // samples sum squared
 
 	alpha = sinf(BETA)/RNIP;
-	//sf_warning("%d",__LINE__);
 
 	for(ih=0; ih < OFFSET_APERTURE; ih++){
 
-		h = ih*d[1]+o[1];
+		h = ih*d[1]+o[1]; h/=2.;
 
 		if(alpha <= 0.001 && alpha >= -0.001){
 			m = m0;
@@ -159,20 +154,16 @@ Note: sumAmplitudes and sumAmplitudes2 variables are changed inside function
 			m = m0 + (1/(2*alpha)) * (1 - sqrt(1 + 4 * alpha * alpha * h * h));
 		}
 
-	//sf_warning("%f",m);
 		im = (int) (m/d[2]);
 
-	//sf_warning("%d",__LINE__);
-		tetai = (int) round((double) creTimeApproximation(h,m,v0,t0,m0,RNIP,BETA,false)/d[0]);
+		tetai = (int) round((double) creTimeApproximation(h,m,v0,t0,m0,RNIP,BETA,true)/d[0]);
 
-	//sf_warning("im=%d ih=%d tetai=%d",im,ih,tetai);
 		if(tetai > n[0] || tetai < 0 || im < 0 || im > n[2]){
 			sa += 0.;
 		}else{
 			sa += data[im][ih][tetai];
 		}
 
-	//sf_warning("%d",__LINE__);
 		sa2 += (sa*sa);
 		numSamples++;
 
@@ -190,7 +181,7 @@ void modelSetup(
 		    float *m0, /* m0's for each NIP */
 		    float *t0, /* t0's for each NIP */
 		    float *BETA, /* BETA for each NIP */
-		    float *a,
+		    float *a, /* NIP angles from setup */
 		    int *n, /* Model dimension */
 		    float *d, /* Model sampling */
 		    float *o, /* Model axis origin */
@@ -264,6 +255,7 @@ ray position is (x=m0,z=0) at acquisition surface.
                         t = acos(x[0]/t);
                         if(x[1]>0) t = -t;
 
+			/* Store NIP angles */
                         a[is] = t;
                 }
 
@@ -291,24 +283,17 @@ float forwardModeling(
 			   int *data_n, /* Data number of samples */
 			   float *data_o, /* Data axis origin */
 			   float *data_d /* Data sampling */)
-/*< Return L2 norm of the time misfit: The time misfit is the difference
-between the traveltime calculated using raytracing and the traveltime calculated
-with the CRE traveltime formula 
-
+/*< Return Average Semblance from all NIP sources.
 Values of x and p are changed inside the function.
 The trajectory traj is stored as follows: {z0,y0,z1,y1,z2,y2,...} in 2-D
 
 Note: This function traces nr reflection rays from each NIP source
 (a depth point coordinate) to acquisition surface. NIP sources coordinates
-are passed through s matrix. This function returns the L2 norm of the difference
-between the traveltime of the reflection rays and the calculated traveltime using CRE
-traveltime approximation. This difference is time misfit.
+are passed through s matrix.
 
-To simulate a reflection ray, this function traces a ray from the NIP source to the
-source location in the acquisition surface and it stores its traveltime ts. And this
-function traces a ray from the NIP source to the receiver location in the acquisition
-surface and it stores the traveltime tr. The total reflection ray traveltime will be the
-sum of t=ts+tr.
+To simulate a normal ray, this function traces a ray from the NIP source to the
+source location in the acquisition surface and stores its traveltime. Dynamic ray tracing is
+performed in obtained ray trajectory to calculate RNIP and BETA angle.
  >*/
 {
 
@@ -328,8 +313,6 @@ sum of t=ts+tr.
 	float semb;
 	float tt;
 	int k;
-	float pesos;
-	float ricker[31]={-0.025013 ,-0.027977 ,-0.032333 ,-0.037205 ,-0.041408 ,-0.043534 ,-0.042141 ,-0.036006 ,-0.024431 ,-0.007521 ,0.013642 ,0.037015 ,0.059829 ,0.079032 ,0.091854 ,0.096360 ,0.091854 ,0.079032 ,0.059829 ,0.037015 ,0.013642 ,-0.007521 ,-0.024431 ,-0.036006 ,-0.042141 ,-0.043534 ,-0.041408 ,-0.037205 ,-0.032333 ,-0.027977 ,-0.025013};
 
 	x = sf_floatalloc(2);
 
@@ -350,44 +333,27 @@ sum of t=ts+tr.
                         /* Calculate RNIP */
 			rnip = calculateRNIPWithDynamicRayTracing(rt,dt,it,traj,v0);
 
-			/*if(RNIP[is]<0.0){
-				sf_warning("ERROR: RNIP=%f",RNIP[is]);
-				sf_warning("%f",a[is]);
-				sf_warning("NIP=%d teta=%f",is,a[is]);
-	                        sf_warning("From: x=%f z=%f",s[is][1],s[is][0]);
-                        	sf_warning("To: x=%f z=%f",traj[it][1],traj[it][0]);
-			}*/
-
 			/* Calculate BETA */
 			beta = calculateBetaWithRayTrajectory(x,traj,it);
 
-			//sf_warning("rnip=%f beta=%f m0=%f t0=%f t0=%f",rnip,beta,traj[it][1],2*it*dt,t0[is]);
-			if(rnip>1.85 && rnip < 10.){
-				/*tmis += (rnip-RNIP[is])*(rnip-RNIP[is]);
-				tmis += (beta-BETA[is])*(beta-BETA[is]);
-				tmis += (traj[it][1]-m0[is])*(traj[it][1]-m0[is]);
-				tmis += (2*it*dt-t0[is])*(2*it*dt-t0[is]);*/
+			//if(rnip<0.)
+				sf_warning("rnip=%f beta=%f m0=%f t0=%f z=%f x=%f",rnip,beta,traj[it][1],2*it*dt,s[is][0],s[is][1]);
+			if(rnip>0.3 && rnip < 5.){
 				semb=0.;
-				pesos=0.;
 				for(k=0;k<31;k++){
 					tt = (2*it*dt)+(k-16)*dt;
 					numSamples = stackOverCRETimeCurve(rnip,beta,x[1],tt,v0,&sumAmplitudes,&sumAmplitudes2,data,data_n,data_o,data_d);
 					if(sumAmplitudes2<0.0001){
 						semb += 0.;
 					}else{
-						semb += fabs(ricker[k]*sumAmplitudes*sumAmplitudes)/(numSamples*sumAmplitudes2);
+						semb += fabs(sumAmplitudes*sumAmplitudes)/(numSamples*sumAmplitudes2);
 					}
-					pesos = 1;//+= fabs(ricker[k]);
 				}
-				tmis += semb/(31.*dt*pesos);
+				tmis += semb/(31.*dt);
 			}else{
 				tmis += 0.;
 			}
-			//if(sumAmplitudes2<0000.1 || 2*it*dt > 1.5 || 2*it*dt < 1.1){
-			//	tmis += 0.;
-			//}else{
-			//}
-
+			
 		}else if(it == 0){ // Ray endpoint inside model
 			t = abs(nt)*dt;
 			rayEndpointError(x,p,traj,t);

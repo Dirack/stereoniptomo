@@ -132,20 +132,19 @@ float second_derivative(void *par, float *n, float *x, float v)
 	// ppdx
 	tmp[0] = x[0]+n[1];
 	tmp[1] = x[1]-n[0];
-	fx[0] = sqrtf(1./grid2_vel(rt->grd2,tmp));
-	//vpdx = sqrtf(1./grid2_vel(rt->grd2,tmp));
+	fx[2] = sqrtf(1./grid2_vel(rt->grd2,tmp));
 
 	fx[1]=v;
-	//fx[1]=v;
 
 	// pmdx
 	tmp[0]=x[0]-n[1];
 	tmp[1]=x[1]+n[0];
-	fx[2] = sqrtf(1./grid2_vel(rt->grd2,tmp));	
-	//vmdx = sqrtf(1./grid2_vel(rt->grd2,tmp));	
+	fx[0] = sqrtf(1./grid2_vel(rt->grd2,tmp));	
 
 	second_deriv(0.001,fx,der,3);
-	//return (vpdx-2.*v+vmdx)/(dx*dx);
+	//sf_warning("v=%f %f %f d=%f",fx[0],fx[1],fx[2],der[1]);
+	//sf_warning("ddnv=%f d=%f",der[1],(fx[0]-2*fx[1]+fx[2])/(dx*dx));
+	//der[1]=(fx[0]-2*fx[1]+fx[2])/(dx*dx);
 	return der[1];
 }
 
@@ -183,20 +182,27 @@ float calculateRNIPWithDynamicRayTracing(
 
 		v = sqrtf(1./grid2_vel(rt->grd2,x));
 
+		//sf_warning("v=%f",v);
 		/* Calculate derivative for each ray sample */
 		dvdn[it]=second_derivative(rt,n,x,v);
 
 	} // Loop over ray samples
 
+	//sf_error("oi");
 	/* Initial conditions for a point source */
 	x[0]=0.; // q=0
 	x[1]=1.; // p=1
 
 	/* Fourth order Runge-Kutta dynamic ray tracing */
-	sf_dynamic_runge_init(2,nt,2*dt);
+	sf_dynamic_runge_init(2,nt,dt);
 	rnip = sf_dynamic_runge_step(x,rt,dyn_iso_rhs,dvdn,traj,v0);
 	sf_dynamic_runge_close();
 
+	/*if(rnip<0.){
+		for(it=0;it<nt;it++)
+			if(dvdn[it]<0.001 || dvdn[it] > 0.001)
+				sf_warning("rnip=%f dvdn[%d]=%f",rnip,it,dvdn[it]);
+	}*/
 	return rnip;
 }
 
@@ -225,7 +231,7 @@ void sortingXinAscendingOrder(
 }
 
 int binarySearch(float xx, float *x, int n)
-/*<TODO>*/
+/*< Binary search to get spline index >*/
 {
 	int ini=0;
 	int fin=n-1;

@@ -1,10 +1,12 @@
 /* Landa 1988 experiment: VFSA velocity inversion based on stereotomography and NIP tomography strategies
 
-This program is a reproduction of the experiment in the article 'A method for determination of velocity and depth from seismic reflection data' avaliable in the doc directory of this repository
+This program is a reproduction of the experiment in the article 'A method for determination of velocity and depth from seismic reflection data' from Landa 1988.
 
-The initial velocity model and NIP sources position used in this program is set up using sfnipmodsetup, that program does the forward modeling by ray tracying, from NIP sources to acquisition surface and gets reflection traveltime for a set of reflection ray pairs.
+That program do the model setup using parameters (t0,m0,BETA,RNIP) picked from stacked section. Rays are traced into the model from m0 and using BETA as the initial direction until t0/2 traveltime is consumed. The final ray coordinate is the NIP source position.
 
-The time misfit is calculated by the difference between the reflection traveltime obtained in the forward modeling and the traveltime calculated by CRE traveltime approximation formula, for RNIP and BETA parameters given. This time misfit is used as a convergence criteria for VFSA global optimization algorithm to obtain optimized velocity model.
+So, the forward modeling is done by ray tracying, from NIP sources to acquisition surface. The program gets reflection traveltime for a set of reflection ray pairs.
+
+The semblance is calculated stacking prestack data amplitudes using Non-Hyperbolic CRS traveltime approximation in RN=RNIP limit (CDS condition). This semblance is used as a convergence criteria for VFSA global optimization algorithm to obtain optimized velocity model. This is done layer by layer.
 
 */
 
@@ -56,25 +58,25 @@ int main(int argc, char* argv[])
 	float *RNIP; // Rnip parameters vector
 	float *BETA; // Beta parameters vector
 	float sv[1]; // Layer's Velocity
-	float minvel;
-	float maxvel;
-	bool first;
-	bool base;
-	float **ots;
-	float *otsz;
-	float *sz;
-	int nsz;
-	float osz;
-	float dsz;
+	float minvel; // Minimun layer velocity
+	float maxvel; // Maximum layer velocity
+	bool first; // First interface inversion?
+	bool base; // Last interface inversion?
+	float **ots; // NIP sources from inversion
+	float *otsz; // Interface Z spline nodes (optimal)
+	float *sz; // Interface Z spline nodes
+	int nsz; // Number of interfaces nodes
+	float osz; // Interfaces nodes origin
+	float dsz; // Interfaces nodes sampling
 	float ***data; // Prestack data A(m,h,t)
 	int data_n[3]; // n1, n2, n3 dimension of data
 	float data_o[3]; // o1, o2, o3 axis origins of data
 	float data_d[3]; // d1, d2, d3 sampling of data
 	sf_file shots; // NIP sources (z,x)
 	sf_file vel; // background velocity model
-	sf_file vz_file;
-	sf_file sz_file;
-	sf_file zspline;
+	sf_file vz_file; // Initial Layer velocity
+	sf_file sz_file; // Initial interface splines nodes
+	sf_file zspline; // Final interface splines nodes
 	sf_file velinv; // Inverted velocity model
 	sf_file m0s; // Central CMPs m0
 	sf_file t0s; // Normal ray traveltimes
@@ -139,54 +141,37 @@ int main(int argc, char* argv[])
 	/* Layers maximum velocity */
 
 	if(!sf_getbool("first",&first)) first=true;
-	/* First interface? */
+	/* First interface inversion (y/n) */
 
 	if(!sf_getbool("base",&base)) base=false;
+	/* No interface inversion, just output the velocity model (y/n) */
 
-	/* Shotsfile: get shot points */
+	/* Shotsfile: get shot points (z=0, x=m0) */
 	if(!sf_histint(shots,"n1",&ndim) || 2 != ndim)
 		sf_error("Must have n1=2 in shotsfile");
-	if(!sf_histint(shots,"n2",&nshot)) sf_error("No n2= in shotfile");
+	if(!sf_histint(shots,"n2",&nshot)) sf_error("No n2= in shotsfile");
 	s = sf_floatalloc2(ndim,nshot);
 	sf_floatread(s[0],ndim*nshot,shots);
 	sf_fileclose(shots);
 	ns=nshot;
 
-	/*if(first){
-		sz=NULL;
-	}else{*/
-		if(!sf_histint(sz_file,"n1",&nsz)) sf_error("No n1= in sz_file");
-		if(!sf_histfloat(sz_file,"o1",&osz)) sf_error("No o1= in sz_file");
-		if(!sf_histfloat(sz_file,"d1",&dsz)) sf_error("No d1= in sz_file");
-		sz = sf_floatalloc(nsz);
-		sf_floatread(sz,nsz,sz_file);
-		otsz = sf_floatalloc(nsz);
-		ots = sf_floatalloc2(ndim,ns);
-	//}
+	if(!sf_histint(sz_file,"n1",&nsz)) sf_error("No n1= in sz_file");
+	if(!sf_histfloat(sz_file,"o1",&osz)) sf_error("No o1= in sz_file");
+	if(!sf_histfloat(sz_file,"d1",&dsz)) sf_error("No d1= in sz_file");
+	sz = sf_floatalloc(nsz);
+	sf_floatread(sz,nsz,sz_file);
+	otsz = sf_floatalloc(nsz);
+	ots = sf_floatalloc2(ndim,ns);
 
-	/* Cubic spline vector */
-	/*if(!sf_histint(vz_file,"n1",nsv)) sf_error("No n1= in sv file");
-	if(!sf_histint(vz_file,"n2",nsv+1)) sf_error("No n1= in sv file");
-	if(!sf_histfloat(vz_file,"o1",osv)) sf_error("No o2= in sv file");
-	if(!sf_histfloat(vz_file,"o2",osv+1)) sf_error("No o3= in sv file");
-	if(!sf_histfloat(vz_file,"d1",dsv)) sf_error("No d2= in sv file");
-	if(!sf_histfloat(vz_file,"d2",dsv+1)) sf_error("No d3= in sv file");*/
-
-	/* Build cubic spline velocity matrix */
-	//sv = sf_floatalloc(1);
+	/* Read initial velocity from file */
 	sf_floatread(sv,1,vz_file);
 
-	/* VFSA parameters vectors */
-	//cnewv = sf_floatalloc(1);
-	//otsv = sf_floatalloc(1);
-
-	/* Read prestack data cube */
+	/* Read prestack data cube A(t,h,m) */
 	data = sf_floatalloc3(data_n[0],data_n[1],data_n[2]);
 	sf_floatread(data[0][0],data_n[0]*data_n[1]*data_n[2],datafile);
 
-	a = sf_floatalloc(ns);
-
 	/* allocate parameters vectors */
+	a = sf_floatalloc(ns);
 	m0 = sf_floatalloc(ns);
 	sf_floatread(m0,ns,m0s);
 	t0 = sf_floatalloc(ns);
@@ -221,21 +206,9 @@ int main(int argc, char* argv[])
 		sf_warning("n2=%d",nshot);
 		sf_warning("Input file (anglefile, t0s, m0s, rnips, betas)");
 		sf_warning("n1=%d",ns);
-		sf_warning("Input file (vz)");
-		//sf_warning("n1=%d d1=%f o1=%f",*nsv,*dsv,*osv);
-		//sf_warning("n2=%d d2=%f o2=%f",*(nsv+1),*(dsv+1),*(osv+1));
+		sf_warning("Input file (vz) - Initial velocity");
+		sf_warning("vi=%f",sv[0]);
 	}
-
-	/* Use previous misfit as the initial misfit value */
-	//if(!first) dumpfloat1("(antes) slow",slow,n[0]);
-	buildSlownessModelFromVelocityModel3(slow,n,o,d,sv,sz,nsz,osz,dsz,first);
-	modelSetup(s, ns,  m0, t0, BETA,  a,  n,  d,  o,  slow);
-	tmis0=0.;//creForwardModeling(s,v0,t0,m0,RNIP,BETA,n,o,d,slow,a,ns,data,data_n,data_o,data_d);
-	otmis=tmis0;
-	/*if(!first){
-		dumpfloat1("sz",sz,nsz);
-		sf_error("oi");
-	}*/
 
 	/* Velocity model from inversion */
 	sf_putint(velinv,"n1",n[0]);
@@ -251,22 +224,25 @@ int main(int argc, char* argv[])
 	/* velocity and interfaces (output) */
 	sf_putint(vspline,"n1",1);
 	sf_putint(vspline,"n2",1);
-	/*sf_putfloat(vspline,"o1",osv[0]);
-	sf_putfloat(vspline,"o2",osv[1]);
-	sf_putfloat(vspline,"d1",dsv[0]);
-	sf_putfloat(vspline,"d2",dsv[1]);*/
-	
-	/* Intiate optimal parameters vectors */
+
+	/* Build initial velocity model and setup NIP sources */
+	buildSlownessModelFromVelocityModel3(slow,n,o,d,sv,sz,nsz,osz,dsz,first);
+	modelSetup(s, ns,  m0, t0, BETA,  a,  n,  d,  o,  slow);
+	tmis0=0.;
+	otmis=tmis0;
+
+	/* Initiate optimal parameters vectors */
 	for(im=0;im<ns;im++){
 		ots[im][0]=s[im][0];
 		ots[im][1]=s[im][1];
-		sf_warning("sz=%f",s[im][0]);
 	}
 	otsv[0]=sv[0];
 
 	srand(time(NULL));
+
+
+	/* Very Fast Simulated Annealing (VFSA) algorithm */
 	if(!base){
-		/* Very Fast Simulated Annealing (VFSA) algorithm */
 		for (q=0; q<nit; q++){
 		
 			/* calculate VFSA temperature for this iteration */
@@ -275,33 +251,26 @@ int main(int argc, char* argv[])
 			/* parameter disturbance */
 			disturbParameters3(temp,cnewv,sv,minvel,maxvel,1);
 
-		//	dumpfloat1("cnewv",cnewv,nsv[0]*nsv[1]);
-
-			/* Function to update velocity model */
+			/* Update velocity model */
 			buildSlownessModelFromVelocityModel3(slow,n,o,d,cnewv,sz,nsz,osz,dsz,first);
 
-			//sf_warning("%d",__LINE__);
+			/* NIP sources setup for new model */
 			tmis=0;
 			modelSetup(s, ns,  m0, t0, BETA,  a,  n,  d,  o,  slow);
-			//sf_warning("%d",__LINE__);
-			//dumpfloat1("slow",slow,n[[0]]);
-			tmis=forwardModeling(s,v0,t0,m0,RNIP,BETA,n,o,d,slow,a,ns,data,data_n,data_o,data_d);
-			//dumpfloat1("slow",slow,nm);
-			//sf_error("capa");
 
+			/* Forward modeling */
+			// TODO change tmis variable name to semb (Semblance)
+			tmis=forwardModeling(s,v0,t0,m0,RNIP,BETA,n,o,d,slow,a,ns,data,data_n,data_o,data_d);
 		
 			if(fabs(tmis) > fabs(tmis0) ){
-			//if(tmis > tmis0 ){
 				otmis = fabs(tmis);
-				/* optimized parameters */
+				/* Keep optimized parameters */
 				for(im=0;im<ns;im++){
 					ots[im][0]=s[im][0];
 					ots[im][1]=s[im][1];
-					sf_warning("sz=%f",s[im][0]);
 				}
 				otsv[0]=cnewv[0];
 				tmis0 = fabs(tmis);
-				//tmis0 = tmis;
 			}
 
 			/* VFSA parameters update condition */
@@ -311,38 +280,34 @@ int main(int argc, char* argv[])
 			PM = expf(-deltaE/temp);
 			
 			if (deltaE<=0){
-				//for(im=0;im<nsv[0]*nsv[1];im++)
 				sv[0]=cnewv[0];
 				Em0 = fabs(tmis);
-				//Em0 = tmis;
 			} else {
 				u=getRandomNumberBetween0and1();
 				if (PM > u){
-					//for(im=0;im<nsv[0]*nsv[1];im++)
 					sv[0]=cnewv[0];
 					Em0 = fabs(tmis);
-					//Em0 = tmis;
 				}
 			}	
-				
+			
+			// TODO do not show this iteration semblance, only optimal one	
 			sf_warning("%d/%d Missfit(%f) vel=%f v=%f %f ;",q+1,nit,otmis,otsv[0],cnewv[0],tmis);
 
 		} /* loop over VFSA iterations */
-	}
+	} /* If base=true skip VFSA, only generate the velocity model */
 
-	/* Generate optimal velocity model */
+	/* Generate optimal velocity model and interfaces */
 	updateVelocityModel3(slow,n,o,d,otsv,sz,nsz,osz,dsz,first);
 
 	interfaceInterpolationFromNipSources(ots,ns,otsz,nsz,osz,dsz);
-	//dumpfloat1("sz",sz,nsz);
-	//dumpfloat1("otsz",otsz,nsz);
 
+	/* Write interfaces nodepoints */
 	sf_putint(zspline,"n1",nsz);
 	sf_putint(zspline,"n2",1);
 	sf_putfloat(zspline,"o1",osz);
 	sf_putfloat(zspline,"d1",dsz);
 
-	/* Write velocity cubic spline function */
+	/* Write layer velocity */
 	sf_floatwrite(otsv,1,vspline);
 	sf_floatwrite(otsz,nsz,zspline);
 	sf_floatwrite(slow,nm,velinv);
