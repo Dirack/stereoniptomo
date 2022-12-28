@@ -68,6 +68,7 @@ each point of a given ray in normal direction of the ray trajectory
 	float rnip;
 
 	x = sf_floatalloc(2);
+	//sf_warning("rnipin");
  
 	for (it = 0; it < nt; it++) {
 
@@ -103,10 +104,12 @@ each point of a given ray in normal direction of the ray trajectory
 			y[i] += dt*(k[0][i]+2.*k[1][i]+2.*k[2][i]+k[3][i])/6.0;
 		}
 	
+		//sf_warning("rnip=%f",y[0]/(y[1]*v0));
 	}
   
 	rnip = v0*(y[1]/y[0]);
 	rnip =  1./rnip;
+	//sf_warning("rnipfim=%f",rnip);
 	return rnip;
 }
 

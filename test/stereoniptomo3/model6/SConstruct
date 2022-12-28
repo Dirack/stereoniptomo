@@ -35,9 +35,9 @@ interpolatedDataCube='interpolatedDataCube'
 xmax = 6.0
 zmax = 4.0
 
-layers = ((1.00,1.00,1.00,1.00),
-          (1.45,1.45,1.45,1.45),
-          (1.85,1.85,1.85,1.85))
+layers = ((0.90,1.25,1.25,0.90),
+          (1.5,1.65,1.65,1.5),
+          (1.85,2.0,2.0,1.85))
 
 velocities = (1.508,
               1.690,
@@ -81,8 +81,13 @@ nit = int(ARGUMENTS.get('nit',100)) # Number of iterations in tomography
 nitf = int(ARGUMENTS.get('nitf',2)) # Number of interfaces
 model = 'model_0' # Constant velocity model
 
+# Traveltime picking
+#Flow('pick0.txt',stackedSection,'ipick')
+#Flow('pick1.txt',stackedSection,'ipick')
+#Flow('pick.txt',['pick0.txt','pick1.txt','pick2.txt'],'/usr/bin/cat $SOURCES')
+
 minvel=[1.45,1.60,1.7,2.0]
-maxvel=[1.65,2.,2.,2.5]
+maxvel=[1.65,2.,1.9,2.5]
 tryvel=[1.46,1.62,1.8,2.0]
 
 Flow('sz_2',None,'math output="1." n1=21 d1=0.5 o1=-2')
@@ -148,11 +153,17 @@ for i in range(3):
 		getparameter t0s=${SOURCES[1]} m0s=${SOURCES[2]} beta=y
 		''')
 
+	
+	#Flow('constv'+str(i),None,'math output="%g" n1=301 n2=1001 d1=0.01 d2=0.01 o2=-2 o1=0' % tryvel[i])
+
+
 	t0s='t0s'+str(i)
 	m0s='m0s'+str(i)
 	betas='betas'+str(i)
 	rnips='rnips'+str(i)
 	shotsfile='shotsfile'+str(i)
+	#anglefile='anglefile'+str(i)
+	#model = 'constv'+str(i)
 
 	velinv = 'modelinv_%d' % i
 	vspline = 'vspline_%d' % i
@@ -183,7 +194,7 @@ Flow('svv','svv.asc',
 
 Flow(['velinv_res','vspline_res','zspline_res'],[model,t0s,m0s,rnips,betas,'svv',interpolatedDataCube,shotsfile,sz],
 	    '''
-	    stereoniptomo3 t0s=${SOURCES[1]} m0s=${SOURCES[2]} rnips=${SOURCES[3]} betas=${SOURCES[4]} sv=${SOURCES[5]} vspline=${TARGETS[1]} data=${SOURCES[6]} shotsfile=${SOURCES[7]} sz=${SOURCES[8]} zspline=${TARGETS[2]} v0=1.508 nit=%d c0=0.2 temp0=2 base=y first=n
+	    stereoniptomo3 t0s=${SOURCES[1]} m0s=${SOURCES[2]} rnips=${SOURCES[3]} betas=${SOURCES[4]} sv=${SOURCES[5]} vspline=${TARGETS[1]} data=${SOURCES[6]} shotsfile=${SOURCES[7]} sz=${SOURCES[8]} zspline=${TARGETS[2]} v0=1.508 nit=%d c0=0.1 temp0=2 base=y first=n
 	    ''')
 
 velinv = 'velinv_res'

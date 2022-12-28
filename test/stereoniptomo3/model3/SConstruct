@@ -36,12 +36,10 @@ xmax = 6.0
 zmax = 4.0
 
 layers = ((1.00,1.00,1.00,1.00),
-          (1.45,1.45,1.45,1.45),
           (1.85,1.85,1.85,1.85))
 
 velocities = (1.508,
               1.690,
-              1.750,
               2.0)
 
 ### Modeling ###
@@ -113,7 +111,7 @@ mlmod(interfaces='interfaces',
         velocities=velocities)
 
 picks=[]
-for i in range(3):
+for i in range(2):
 	Flow('pick'+str(i)+'.txt',stackedSection,'ipick')
 	picks.append('pick'+str(i)+'.txt')
 	files=['t0s'+str(i),'m0s'+str(i)]
