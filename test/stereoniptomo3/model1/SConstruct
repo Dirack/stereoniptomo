@@ -120,11 +120,11 @@ for i in range(2):
 	Flow('pick'+str(i)+'.txt',stackedSection,'put title="Interface-%d" | ipick' % i)
 	picks.append('pick'+str(i)+'.txt')
 	files=['t0s'+str(i),'m0s'+str(i)]
-	k=1
+	k=0
 	for f in files:
 		Flow(f+'.asc','pick'+str(i)+'.txt',
 		'''
-		./ascFormat.sh ${TARGETS} %d
+		pick2asc ${TARGETS} %d
 		''' % k)
 
 		Flow(f,f+'.asc','dd type=float form=native | put n2=1 d2=1 o2=0')
