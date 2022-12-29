@@ -16,6 +16,8 @@
 # 
 # License: GPL-3.0 <https://www.gnu.org/licenses/gpl-3.0.txt>.
 
+import os
+
 # Madagascar Package
 from rsf.proj import *
 
@@ -23,7 +25,7 @@ from rsf.proj import *
 from rsf.recipes.pefInterpolation import pefInterpolation as pef
 from rsf.recipes.kimodel import multiLayerModelBuild as mlmod
 from rsf.recipes.kimodel import kirchhoffNewtonModeling as kinewmod
-from rsf.recipes.utils import arr2str
+from rsf.recipes.utils import arr2str, Pull, velplot
 
 # Main Files
 trueModel='trueModel'
@@ -31,46 +33,51 @@ stackedSection='stackedSection'
 parametersCube='parametersCube'
 interpolatedDataCube='interpolatedDataCube'
 
+# fetch files
+Pull([stackedSection,parametersCube,interpolatedDataCube,trueModel],
+        path=os.environ.get('RSFSRC')+
+        '/user/creGatherStack/experiments/constLayersModels/model1/backup/')
+
 # Original velocity model
-xmax = 6.0 
-zmax = 4.0 
+#xmax = 6.0 
+#zmax = 4.0 
 
-layers = ((1.00,1.20,0.90,1.00),
-          (1.85,1.85,1.85,1.85))
+#layers = ((1.00,1.20,0.90,1.00),
+#          (1.85,1.85,1.85,1.85))
 
-velocities = (1.508,
-              1.690,
-              2.0)
+#velocities = (1.508,
+#              1.690,
+#              2.0)
 
 ### Modeling ###
 
 # Generate multi layer model
-mlmod(interfaces='interfaces',
-        dipsfile='interfacesDip',
-        modelfile=trueModel,
-        xmax=xmax,
-        zmax=zmax,
-        layers=layers,
-        velocities=velocities)
+#mlmod(interfaces='interfaces',
+#        dipsfile='interfacesDip',
+#        modelfile=trueModel,
+#        xmax=xmax,
+#        zmax=zmax,
+#        layers=layers,
+#        velocities=velocities)
 
 # plot the original velocity model
-Result(trueModel,
-	'''
-	grey color=j scalebar=y label1=Depth unit1=km
-	label2=Position unit2=km barlabel=Velocity barunit=km/s
-	barreverse=y title="Velocity Model - Plane Interfaces" allpos=yi bias=1.0
-	''')
+Result(trueModel,velplot("Velocity Model"))
+#	'''
+#	grey color=j scalebar=y label1=Depth unit1=km
+#	label2=Position unit2=km barlabel=Velocity barunit=km/s
+#	barreverse=y title="Velocity Model - Plane Interfaces" allpos=yi bias=1.0
+#	''')
 
 # VFSA Parameters
-v0 = float(ARGUMENTS.get('v0',1.5))
-ot0 = float(ARGUMENTS.get('ot0',1.0))
-dt0 = float(ARGUMENTS.get('dt0',0.008))
-nt0 = int(ARGUMENTS.get('nt0',251))
-om0 = float(ARGUMENTS.get('om0',1.5))
-dm0 = float(ARGUMENTS.get('dm0',0.025))
-nm0 = int(ARGUMENTS.get('nm0',121))
-aperture = int(ARGUMENTS.get('aperture',30))
-cds = bool(ARGUMENTS.get('cds',False))
+#v0 = float(ARGUMENTS.get('v0',1.5))
+#ot0 = float(ARGUMENTS.get('ot0',1.0))
+#dt0 = float(ARGUMENTS.get('dt0',0.008))
+#nt0 = int(ARGUMENTS.get('nt0',251))
+#om0 = float(ARGUMENTS.get('om0',1.5))
+#dm0 = float(ARGUMENTS.get('dm0',0.025))
+#nm0 = int(ARGUMENTS.get('nm0',121))
+#aperture = int(ARGUMENTS.get('aperture',30))
+#cds = bool(ARGUMENTS.get('cds',False))
 
 ### velocity inversion using NIP tomography ###
 
@@ -107,13 +114,13 @@ Flow(sv,'sv_2.asc',
 	''')
 
 # Generate multi layer model
-mlmod(interfaces='interfaces',
-        dipsfile='interfacesDip',
-        modelfile=trueModel,
-        xmax=xmax,
-        zmax=zmax,
-        layers=layers,
-        velocities=velocities)
+#mlmod(interfaces='interfaces',
+#        dipsfile='interfacesDip',
+#        modelfile=trueModel,
+#        xmax=xmax,
+#        zmax=zmax,
+#        layers=layers,
+#        velocities=velocities)
 
 picks=[]
 for i in range(2):
