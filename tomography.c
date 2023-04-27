@@ -337,7 +337,7 @@ performed in obtained ray trajectory to calculate RNIP and BETA angle.
 			beta = calculateBetaWithRayTrajectory(x,traj,it);
 
 			//if(rnip<0.)
-				sf_warning("rnip=%f beta=%f m0=%f t0=%f z=%f x=%f",rnip,beta,traj[it][1],2*it*dt,s[is][0],s[is][1]);
+				//sf_warning("rnip=%f beta=%f m0=%f t0=%f z=%f x=%f",rnip,beta,traj[it][1],2*it*dt,s[is][0],s[is][1]);
 			if(rnip>0.3 && rnip < 5.){
 				semb=0.;
 				for(k=0;k<31;k++){
